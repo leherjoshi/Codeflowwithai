@@ -59,18 +59,31 @@ export default function DashboardPage() {
 
       // Try to fetch LeetCode profile stats
       try {
+        console.log('[Dashboard] Fetching LeetCode profile for:', user.leetcode_username)
         const profileResponse = await api.fetchProfile(user.user_id, user.leetcode_username)
+        console.log('[Dashboard] Profile response:', profileResponse)
+        
         const profile = profileResponse.profile
         if (profile) {
+          console.log('[Dashboard] Profile data:', profile)
           setLeetcodeStats({
             total: profile.total_solved || 0,
             easy: profile.easy_solved || 0,
             medium: profile.medium_solved || 0,
             hard: profile.hard_solved || 0,
           })
+        } else {
+          console.warn('[Dashboard] No profile data in response')
+          // Use progress data as fallback
+          setLeetcodeStats({
+            total: progressData.total_problems_solved || 0,
+            easy: 0,
+            medium: 0,
+            hard: 0,
+          })
         }
       } catch (err) {
-        console.error("Failed to fetch LeetCode profile:", err)
+        console.error("[Dashboard] Failed to fetch LeetCode profile:", err)
         // Use progress data as fallback
         setLeetcodeStats({
           total: progressData.total_problems_solved || 0,
