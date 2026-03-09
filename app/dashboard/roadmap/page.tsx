@@ -168,7 +168,7 @@ export default function RoadmapPage() {
               <RoadmapCard
                 day={index + 1}
                 title={problem.title}
-                topic={problem.topics[0] || "General"}
+                description={problem.reason || problem.topics.join(", ")}
                 difficulty={problem.difficulty}
                 completed={completedProblems.has(problem.leetcode_id)}
                 delay={0.2 + index * 0.05}
