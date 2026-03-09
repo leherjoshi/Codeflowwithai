@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import ProblemCard from "@/components/problem-card"
-import { Play, Clock, CheckCircle2, Sparkles, Loader2, Lightbulb } from "lucide-react"
+import { Play, Clock, CheckCircle2, Sparkles, Loader2, Lightbulb, SkipForward, RefreshCw, Timer } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { api, Problem } from "@/lib/api"
 
@@ -18,6 +18,10 @@ export default function InterviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingHint, setIsLoadingHint] = useState(false)
   const [error, setError] = useState("")
+  const [timer, setTimer] = useState(0)
+  const [isTimerRunning, setIsTimerRunning] = useState(false)
+  const [problemIndex, setProblemIndex] = useState(0)
+  const [totalProblems, setTotalProblems] = useState(0)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -29,6 +33,21 @@ export default function InterviewPage() {
       fetchProblem()
     }
   }, [user, isAuthenticated, authLoading, router])
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    
+    if (isTimerRunning) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev + 1)
+      }, 1000)
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isTimerRunning])
 
   const fetchProblem = async () => {
     if (!user) return
@@ -72,6 +91,40 @@ export default function InterviewPage() {
     } finally {
       setIsLoadingHint(false)
     }
+  }
+
+  const startTimer = () => {
+    setIsTimerRunning(true)
+    setIsStarted(true)
+  }
+
+  const stopTimer = () => {
+    setIsTimerRunning(false)
+  }
+
+  const resetTimer = () => {
+    setTimer(0)
+    setIsTimerRunning(false)
+  }
+
+  const handleNextProblem = async () => {
+    resetTimer()
+    setCurrentHint("")
+    setHintLevel(1)
+    await fetchProblem()
+  }
+
+  const handleMarkComplete = async () => {
+    stopTimer()
+    // Could add API call here to mark problem as complete
+    // For now, just show success message
+    setError("")
+  }
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
   if (authLoading || isLoading) {
@@ -129,8 +182,40 @@ export default function InterviewPage() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="grid gap-4 md:grid-cols-3"
+        className="grid gap-4 md:grid-cols-4"
       >
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Timer</span>
+            <Timer className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+            {formatTime(timer)}
+          </p>
+          <div className="mt-2 flex gap-2">
+            {!isTimerRunning ? (
+              <button
+                onClick={startTimer}
+                className="text-xs text-green-600 hover:text-green-700 dark:text-green-400"
+              >
+                Start
+              </button>
+            ) : (
+              <button
+                onClick={stopTimer}
+                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400"
+              >
+                Stop
+              </button>
+            )}
+            <button
+              onClick={resetTimer}
+              className="text-xs text-gray-600 hover:text-gray-700 dark:text-gray-400"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600 dark:text-gray-400">Current Problem</span>
@@ -212,12 +297,12 @@ export default function InterviewPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           <a
             href={`https://leetcode.com/problems/${problem.leetcode_id}/`}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => setIsStarted(true)}
+            onClick={startTimer}
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 font-medium text-white transition-all hover:shadow-lg hover:shadow-purple-500/50"
           >
             <Play className="h-4 w-4" />
@@ -234,6 +319,25 @@ export default function InterviewPage() {
               <Lightbulb className="h-4 w-4" />
             )}
             Get Hint {hintLevel > 1 && `(Level ${hintLevel})`}
+          </button>
+          <button
+            onClick={handleMarkComplete}
+            className="flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-6 py-3 font-medium text-green-700 transition-all hover:bg-green-100 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/20"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Mark Complete
+          </button>
+          <button
+            onClick={handleNextProblem}
+            disabled={isLoading}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-900 transition-all hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <SkipForward className="h-4 w-4" />
+            )}
+            Next Problem
           </button>
         </div>
       </motion.div>

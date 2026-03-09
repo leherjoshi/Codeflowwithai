@@ -22,6 +22,12 @@ export default function DashboardPage() {
   const [progress, setProgress] = useState<Progress | null>(null)
   const [topicData, setTopicData] = useState<TopicData[]>([])
   const [roadmap, setRoadmap] = useState<Problem[]>([])
+  const [leetcodeStats, setLeetcodeStats] = useState<{
+    total: number
+    easy: number
+    medium: number
+    hard: number
+  } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -43,13 +49,36 @@ export default function DashboardPage() {
     setError("")
 
     try {
-      // Fetch progress and topics in parallel
+      // Fetch progress, topics, and profile in parallel
       const [progressData, topicsData] = await Promise.all([
         api.getProgress(user.user_id),
         api.getTopics(user.user_id),
       ])
 
       setProgress(progressData)
+
+      // Try to fetch LeetCode profile stats
+      try {
+        const profileResponse = await api.fetchProfile(user.user_id, user.leetcode_username)
+        const profile = profileResponse.profile
+        if (profile) {
+          setLeetcodeStats({
+            total: profile.total_solved || 0,
+            easy: profile.easy_solved || 0,
+            medium: profile.medium_solved || 0,
+            hard: profile.hard_solved || 0,
+          })
+        }
+      } catch (err) {
+        console.error("Failed to fetch LeetCode profile:", err)
+        // Use progress data as fallback
+        setLeetcodeStats({
+          total: progressData.total_problems_solved || 0,
+          easy: 0,
+          medium: 0,
+          hard: 0,
+        })
+      }
 
       // Convert topics to radar chart format
       const topicArray = Object.entries(topicsData.topics).map(([topic, data]) => ({
@@ -130,9 +159,9 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Problems Solved"
-          value={progress?.total_problems_solved || 0}
+          value={leetcodeStats?.total || 0}
           icon={Trophy}
-          trend={`${progress?.problems_solved_today || 0} today`}
+          trend={leetcodeStats ? `${leetcodeStats.easy}E • ${leetcodeStats.medium}M • ${leetcodeStats.hard}H` : "Loading..."}
           delay={0.1}
         />
         <StatCard
